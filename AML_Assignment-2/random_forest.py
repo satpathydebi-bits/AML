@@ -28,6 +28,6 @@ print("Accuracy:", accuracy)
 
 # Check if accuracy is more than 90%
 if accuracy > 0.90:
-    print("Performance score achieved!")
+    print("Performance score achieved! Accuracy in %={}%".format(accuracy*100))
 else:
     print("Performance score not achieved.")
