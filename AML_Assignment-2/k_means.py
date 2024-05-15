@@ -1,46 +1,51 @@
-import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
 from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
+from sklearn.metrics import accuracy_score
 
-# Load the dataset
-data = pd.read_csv("Mall_Customers.csv")
+# Load the Iris dataset
+iris = load_iris()
+X = iris.data  # Features
+y_true = iris.target  # True class labels
 
-# Preprocess the data
-# Drop irrelevant columns like CustomerID
-data.drop("CustomerID", axis=1, inplace=True)
+# Elbow method to find the optimal number of clusters
+wcss = []
+for i in range(1, 11):
+    kmeans = KMeans(n_clusters=i, init='k-means++', max_iter=300, n_init=10, random_state=42)
+    kmeans.fit(X)
+    wcss.append(kmeans.inertia_)
 
-# Handle any missing values if present
-data.dropna(inplace=True)
+# Plot the elbow method diagram
+plt.plot(range(1, 11), wcss)
+plt.title('Elbow Method')
+plt.xlabel('Number of Clusters')
+plt.ylabel('WCSS')  # Within cluster sum of squares
+plt.show()
 
-# Encode categorical variables
-ct = ColumnTransformer(
-    transformers=[
-        ('encoder', OneHotEncoder(), ['Gender'])
-    ],
-    remainder='passthrough'
-)
-data_encoded = ct.fit_transform(data)
-data_encoded = pd.DataFrame(data_encoded, columns=['Female', 'Male'] + data.columns[1:].tolist())
+# Perform K-Means clustering with the optimal number of clusters
+optimal_k = 3  # Chosen based on the elbow method plot
+kmeans = KMeans(n_clusters=optimal_k, init='k-means++', max_iter=300, n_init=10, random_state=42)
+kmeans.fit(X)
 
-# Scale the features
-scaler = StandardScaler()
-scaled_data = scaler.fit_transform(data_encoded)
+# Map cluster labels to match the true class labels
+cluster_labels = np.zeros_like(kmeans.labels_)
+for i in range(optimal_k):
+    mask = (kmeans.labels_ == i)
+    cluster_labels[mask] = np.bincount(y_true[mask]).argmax()
 
-# Perform customer segmentation using K-Means
-kmeans = KMeans(n_clusters=5, random_state=42)
-kmeans.fit(scaled_data)
+# Assign cluster labels based on the mapping
+y_pred = cluster_labels
 
-# Evaluate the clustering
-silhouette_avg = silhouette_score(scaled_data, kmeans.labels_)
-print("Silhouette Score:", silhouette_avg)
+# Calculate accuracy
+accuracy = accuracy_score(y_true, y_pred)
+print("Accuracy:", accuracy)
+print("Accuracy %: {}".format(accuracy*100))
 
 # Visualize the clusters
-# For 2D visualization, consider plotting only two features (e.g., spending score vs. annual income)
-plt.scatter(data['Annual Income (k$)'], data['Spending Score (1-100)'], c=kmeans.labels_, cmap='viridis')
-plt.xlabel('Annual Income')
-plt.ylabel('Spending Score')
-plt.title('Customer Segmentation')
+# Here, we visualize the first two features
+plt.scatter(X[:, 0], X[:, 1], c=y_pred, cmap='viridis')
+plt.xlabel('Feature 1')
+plt.ylabel('Feature 2')
+plt.title('K-Means Clustering with {} Clusters (Accuracy: {:.2f}%)'.format(optimal_k, accuracy * 100))
 plt.show()
